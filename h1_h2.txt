@@ -1,0 +1,46 @@
+updates {
+  type: INSERT
+  entity {
+    table_entry {
+      table_id: 33597842 # ("MyIngress.l2_dst_table")
+      match {
+        field_id: 1 # ("hdr.ethernet.dstAddr")
+        exact {
+          value: "\x00\x00\x00\x00\x00\x01"
+        }
+      }
+      action {
+        action {
+          action_id: 16838673 # ("MyIngress.forward")
+          params {
+            param_id: 1 # ("port")
+            value: "\x00\x01"
+          }
+        }
+      }
+    }
+  }
+}
+updates {
+  type: INSERT
+  entity {
+    table_entry {
+      table_id: 33597842 # ("MyIngress.l2_dst_table")
+      match {
+        field_id: 1 # ("hdr.ethernet.dstAddr")
+        exact {
+          value: "\x00\x00\x00\x00\x00\x02"
+        }
+      }
+      action {
+        action {
+          action_id: 16838673 # ("MyIngress.forward")
+          params {
+            param_id: 1 # ("port")
+            value: "\x00\x02"
+          }
+        }
+      }
+    }
+  }
+}
