@@ -2453,6 +2453,47 @@ def DumpTable(table):
             paramStr = "{0}".format(int.from_bytes(param, byteorder='big'))
         print("{0} {1}({2})".format(mac2str(value.exact.value), action_name, paramStr))
 
+def configMetaAppend(packet, metadata, index, offset, shift):
+    metadata.metadata_id = context.get_cpm_id("packet_out", "offset_"+index) 
+    metadata.value = offset
+    packet.metadata.append(metadata)
+    metadata.metadata_id = context.get_cpm_id("packet_out", "shift_"+index) 
+    metadata.value = shift
+    packet.metadata.append(metadata)
+
+def ConfigCounters():
+    """
+        bit<32> lots; // needs to be lots <= MAX_LOTS
+        bit<32> bins; // needs to be lots * bins <= MAX_COUNTERS
+        bit<32> offset_0;
+        bit<32> shift_0;
+        .... continue...
+    """
+    req = p4runtime_pb2.StreamMessageRequest()
+    packet = req.packet
+    # payload = packet.payload
+
+    metadata = p4runtime_pb2.PacketMetadata()
+    metadata.metadata_id = context.get_cpm_id("packet_out", "lots") 
+    metadata.value = b'\x00\x00\x00\x08' # lots = 8
+    packet.metadata.append(metadata)
+    metadata.metadata_id = context.get_cpm_id("packet_out", "bins") 
+    metadata.value = b'\x00\x00\x00\x20' # bins = 32
+    packet.metadata.append(metadata)
+
+    configMetaAppend(packet, metadata, "0", b'\x00\x00\x00\x00', b'\x00\x00\x00\x06') # off:  0, sht:  6
+    configMetaAppend(packet, metadata, "1", b'\x00\x00\x00\x20', b'\x00\x00\x00\x08') # off: 32, sht:  8
+    configMetaAppend(packet, metadata, "2", b'\x00\x00\x00\x40', b'\x00\x00\x00\x0a') # off: 64, sht: 10
+    configMetaAppend(packet, metadata, "3", b'\x00\x00\x00\x60', b'\x00\x00\x00\x0c') # off: 96, sht: 12
+    configMetaAppend(packet, metadata, "4", b'\x00\x00\x00\x80', b'\x00\x00\x00\x0e') # off:128, sht: 14
+    configMetaAppend(packet, metadata, "5", b'\x00\x00\x00\xa0', b'\x00\x00\x00\x10') # off:160, sht: 16
+    configMetaAppend(packet, metadata, "6", b'\x00\x00\x00\xc0', b'\x00\x00\x00\x12') # off:  0, sht: 18
+    configMetaAppend(packet, metadata, "7", b'\x00\x00\x00\xe0', b'\x00\x00\x00\x14') # off:  0, sht: 20
+
+    print("Packet out request")
+    print(req)
+    client.stream_out_q.put(req)
+
 def ReadCounters(counter_id=None, index=None, dry_run=False):
     request = p4runtime_pb2.ReadRequest()
     request.device_id = client.device_id
@@ -2473,25 +2514,23 @@ def ReadCounters(counter_id=None, index=None, dry_run=False):
 def PrintCounters(counter_id=None):
     # print counter
     if(counter_id is not None):
-        print("# {0} : ".format(context.get_name_from_id(counter_id)), end="")
+        print("# {0} : ".format(context.get_name_from_id(counter_id)))
         
     for response in ReadCounters(counter_id):
+        # print(response)
         for entity in response.entities:
             counter = entity.counter_entry
+            if(counter.index.index % 32 == 0):
+                print()
+            if(counter.index.index == 8 * 32):
+                break
             print(" {0}".format(counter.data.packet_count), end="")
             # print("#  {0}: {1} ".format(counter.index.index, counter.data.packet_count), end="")
     print()
     return
 
 def Test():
-    PrintCounters(302039124)
-    PrintCounters(302015689)
-    PrintCounters(302009767)
-    PrintCounters(302016219)
-    PrintCounters(301992849)
-    PrintCounters(302034812)
-    PrintCounters(302038069)
-    PrintCounters(302044049)
+    PrintCounters(302003675) #  "MyIngress.bins"
     return
 
     # print counter
@@ -2724,6 +2763,7 @@ def main():
         "context": context,
         "DumpTable": DumpTable,
         "PrintCounters": PrintCounters,
+        "ConfigCounters": ConfigCounters,
         "Test": Test,
         "Replica": Replica,
         "MulticastGroupEntry": MulticastGroupEntry,
